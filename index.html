@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Self-Reflective RAG</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0efe9;
+      --surface: #ffffff;
+      --surface2: #f5f4ef;
+      --surface3: #eceae3;
+      --border: rgba(0,0,0,0.09);
+      --border-strong: rgba(0,0,0,0.18);
+      --text: #181816;
+      --text2: #52524e;
+      --text3: #909088;
+      --purple: #534AB7;
+      --purple-light: #EEEDFE;
+      --purple-mid: #AFA9EC;
+      --blue: #185FA5;
+      --blue-light: #E6F1FB;
+      --amber: #854F0B;
+      --amber-light: #FAEEDA;
+      --teal: #0F6E56;
+      --teal-light: #E1F5EE;
+      --red: #A32D2D;
+      --red-light: #FCEBEB;
+      --radius: 12px;
+      --radius-sm: 7px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141412;
+        --surface: #1e1e1c;
+        --surface2: #252523;
+        --surface3: #2c2c2a;
+        --border: rgba(255,255,255,0.08);
+        --border-strong: rgba(255,255,255,0.16);
+        --text: #e6e4dc;
+        --text2: #a4a29a;
+        --text3: #64625a;
+        --purple-light: #26215C;
+        --blue-light: #042C53;
+        --amber-light: #412402;
+        --teal-light: #04342C;
+        --red-light: #501313;
+        --shadow: 0 1px 3px rgba(0,0,0,0.3);
+      }
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo-wrap {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, #534AB7, #AFA9EC);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .header-text h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    .header-text p  { font-size: 11px; color: var(--text3); margin-top: 1px; }
+    .header-pill {
+      margin-left: auto;
+      font-size: 11px; font-weight: 500;
+      padding: 3px 10px; border-radius: 20px;
+      background: var(--purple-light); color: var(--purple);
+      border: 1px solid var(--purple-mid);
+      opacity: 0.8;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    .section-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px;
+    }
+    .section-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--surface3); color: var(--text3);
+      font-size: 11px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--text2); }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+    .card-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text3);
+      margin-bottom: 8px;
+    }
+
+    /* ── Form elements ── */
+    textarea {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 13px; font-family: inherit; line-height: 1.6;
+      resize: vertical;
+      transition: border-color 0.15s;
+    }
+    textarea:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px rgba(83,74,183,0.1); }
+
+    /* ── Quick example chips ── */
+    .chip-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+    .chip {
+      font-size: 11px; padding: 4px 10px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text2); cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .chip:hover { background: var(--surface3); border-color: var(--border-strong); }
+
+    /* ── Controls bar ── */
+    .controls-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+    .btn {
+      padding: 8px 18px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      border: 1px solid var(--border-strong);
+      background: transparent; color: var(--text); font-family: inherit;
+      transition: background 0.12s, opacity 0.12s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--surface2); }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: var(--purple); color: #fff;
+      border-color: transparent;
+      box-shadow: 0 1px 3px rgba(83,74,183,0.3);
+    }
+    .btn-primary:hover { background: #4740a8; opacity: 1; }
+    .btn-ghost { border-color: var(--border); color: var(--text2); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; }
+
+    .threshold-group {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .threshold-group span { font-size: 12px; color: var(--text2); white-space: nowrap; }
+    input[type="range"] {
+      width: 90px; accent-color: var(--purple); cursor: pointer;
+    }
+    .threshold-val {
+      font-size: 13px; font-weight: 600;
+      min-width: 34px; text-align: right;
+      color: var(--purple);
+    }
+
+    /* ── Status banner ── */
+    .status-banner {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--text2);
+      padding: 8px 12px;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      margin-top: 10px;
+    }
+    .status-banner.success { color: var(--teal); background: var(--teal-light); }
+    .status-banner.error   { color: var(--red);  background: var(--red-light); }
+
+    /* ── Pipeline ── */
+    .pipeline-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin-bottom: 1.25rem;
+    }
+    @media (max-width: 560px) { .pipeline-grid { grid-template-columns: 1fr; } }
+
+    .pipeline-step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      display: flex; align-items: flex-start; gap: 10px;
+      box-shadow: var(--shadow);
+      transition: border-color 0.2s;
+    }
+    .pipeline-step.is-active { border-color: var(--blue); }
+    .pipeline-step.is-done   { border-color: var(--teal); }
+    .pipeline-step.is-warn   { border-color: var(--amber); }
+
+    .step-icon {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+      transition: background 0.2s, color 0.2s;
+    }
+    .s-idle   { background: var(--surface3); color: var(--text3); }
+    .s-active { background: var(--blue-light); color: var(--blue); }
+    .s-done   { background: var(--teal-light); color: var(--teal); }
+    .s-warn   { background: var(--amber-light); color: var(--amber); }
+
+    .step-content { flex: 1; min-width: 0; }
+    .step-name { font-size: 13px; font-weight: 600; }
+    .step-desc { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+    .step-detail { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.5; }
+
+    .score-track { height: 4px; background: var(--surface3); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+    .score-fill  { height: 100%; border-radius: 2px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+
+    /* ── Attempts ── */
+    .attempts-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .tab-list { display: flex; gap: 5px; flex-wrap: wrap; }
+    .tab {
+      padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      cursor: pointer; border: 1px solid var(--border);
+      background: transparent; color: var(--text2);
+      transition: background 0.12s;
+    }
+    .tab.active {
+      background: var(--purple-light); border-color: var(--purple-mid);
+      color: var(--purple);
+    }
+
+    .attempt-body { margin-top: 4px; }
+    .sublabel {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text3);
+      margin: 14px 0 6px;
+    }
+    .sublabel:first-child { margin-top: 0; }
+
+    .answer-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 13.5px; line-height: 1.75;
+      white-space: pre-wrap; color: var(--text);
+    }
+    .feedback-box {
+      background: var(--amber-light);
+      border-left: 3px solid var(--amber);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 10px 12px;
+      font-size: 13px; color: var(--text2); line-height: 1.6;
+    }
+
+    .flags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .flag {
+      font-size: 11px; font-weight: 500;
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .flag-ok  { background: var(--teal-light);  color: var(--teal); }
+    .flag-bad { background: var(--red-light);   color: var(--red); }
+
+    .score-row {
+      display: flex; align-items: center; gap: 10px; margin-top: 12px;
+    }
+    .badge {
+      font-size: 12px; font-weight: 600;
+      padding: 4px 12px; border-radius: 20px; white-space: nowrap;
+    }
+    .badge-green { background: var(--teal-light);  color: var(--teal); }
+    .badge-amber { background: var(--amber-light); color: var(--amber); }
+    .badge-red   { background: var(--red-light);   color: var(--red); }
+
+    .score-track-inline { flex: 1; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+    .score-fill-inline  { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+    /* ── Final answer ── */
+    .final-card {
+      border: 1.5px solid var(--teal);
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+    .final-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 12px;
+    }
+    .final-icon {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--teal-light); color: var(--teal);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .final-title { font-size: 14px; font-weight: 600; }
+    .final-meta  { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid var(--border-strong); border-top-color: var(--blue);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; flex-shrink: 0;
+    }
+
+    /* ── Divider ── */
+    .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+    .hidden { display: none !important; }
+    .mt { margin-top: 1.25rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">🔍</div>
+  <div class="header-text">
+    <h1>Self-Reflective RAG</h1>
+    <p>Generate → Critique → Regenerate</p>
+  </div>
+  <span class="header-pill">Powered by Groq · Llama 3.3</span>
+</header>
+
+<div class="container">
+
+  <!-- Step 1 & 2: Inputs -->
+  <div class="grid">
+
+    <div>
+      <div class="section-header">
+        <div class="section-num">1</div>
+        <span class="section-title">Knowledge base</span>
+      </div>
+      <div class="card">
+        <div class="card-label">Your documents / context</div>
+        <textarea id="kb" rows="7" placeholder="Paste your text, notes, or document content here…">The Eiffel Tower was built between 1887 and 1889 as a temporary exhibit for the 1889 World's Fair in Paris. It was designed by engineer Gustave Eiffel and stands 330 meters tall. Originally intended to be dismantled after 20 years, it was saved due to its value as a radio transmission tower. Today it is one of the most visited monuments in the world, attracting around 7 million visitors per year. The tower has three levels accessible to visitors, with restaurants on the first and second floors.</textarea>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-header">
+        <div class="section-num">2</div>
+        <span class="section-title">Your question</span>
+      </div>
+      <div class="card">
+        <div class="card-label">Ask something about your documents</div>
+        <textarea id="query" rows="3" placeholder="Type your question here…">Why was the Eiffel Tower not demolished after 20 years?</textarea>
+        <div class="card-label" style="margin-top:12px;">Quick examples</div>
+        <div class="chip-list">
+          <span class="chip" onclick="setQ('How tall is the Eiffel Tower?')">How tall is it?</span>
+          <span class="chip" onclick="setQ('Who designed the Eiffel Tower?')">Who designed it?</span>
+          <span class="chip" onclick="setQ('How many visitors does the Eiffel Tower get per year?')">Annual visitors?</span>
+          <span class="chip" onclick="setQ('What restaurants are in the Eiffel Tower?')">Restaurants?</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Controls -->
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <span class="section-title">Run</span>
+  </div>
+  <div class="controls-bar">
+    <button class="btn btn-primary" id="run-btn" onclick="runPipeline()">▶ Run pipeline</button>
+    <button class="btn btn-ghost" onclick="resetAll()">↺ Reset</button>
+    <div class="threshold-group">
+      <span>Quality threshold</span>
+      <input type="range" id="threshold" min="40" max="95" value="70"
+             oninput="document.getElementById('tval').textContent = this.value + '%'">
+      <span class="threshold-val" id="tval">70%</span>
+    </div>
+  </div>
+  <div id="status-banner" class="status-banner hidden"></div>
+
+  <div class="divider"></div>
+
+  <!-- Pipeline -->
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <span class="section-title">Pipeline status</span>
+  </div>
+  <div class="pipeline-grid">
+
+    <div class="pipeline-step" id="pstep-1">
+      <div class="step-icon s-idle" id="icon-1">1</div>
+      <div class="step-content">
+        <div class="step-name">Retriever</div>
+        <div class="step-desc">Finds relevant passages</div>
+        <div class="step-detail" id="detail-1">Waiting…</div>
+      </div>
+    </div>
+
+    <div class="pipeline-step" id="pstep-2">
+      <div class="step-icon s-idle" id="icon-2">2</div>
+      <div class="step-content">
+        <div class="step-name">Answer generator</div>
+        <div class="step-desc">LLM drafts answer from context</div>
+        <div class="step-detail" id="detail-2">Waiting…</div>
+      </div>
+    </div>
+
+    <div class="pipeline-step" id="pstep-3">
+      <div class="step-icon s-idle" id="icon-3">3</div>
+      <div class="step-content">
+        <div class="step-name">Critic model</div>
+        <div class="step-desc">Scores grounding &amp; hallucination</div>
+        <div class="step-detail" id="detail-3">Waiting…</div>
+        <div id="score-track" class="score-track hidden">
+          <div class="score-fill" id="score-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pipeline-step" id="pstep-4">
+      <div class="step-icon s-idle" id="icon-4">4</div>
+      <div class="step-content">
+        <div class="step-name">Decision</div>
+        <div class="step-desc">Accept or regenerate</div>
+        <div class="step-detail" id="detail-4">Waiting…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Attempt history -->
+  <div id="attempts-section" class="hidden mt">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <span class="section-title">Attempt history</span>
+    </div>
+    <div class="card">
+      <div class="attempts-header">
+        <div class="tab-list" id="tabs"></div>
+      </div>
+      <div class="attempt-body" id="attempt-content"></div>
+    </div>
+  </div>
+
+  <!-- Final answer -->
+  <div id="final-section" class="hidden mt">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <span class="section-title">Final answer</span>
+    </div>
+    <div class="final-card">
+      <div class="final-header">
+        <div class="final-icon" id="final-icon">✓</div>
+        <div>
+          <div class="final-title">Answer accepted</div>
+          <div class="final-meta" id="final-meta"></div>
+        </div>
+        <span class="badge" id="final-badge" style="margin-left:auto"></span>
+      </div>
+      <div class="answer-box" id="final-answer"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = "http://127.0.0.1:5000/api/run";
+  let allAttempts = [], activeTab = 0;
+
+  function setQ(q) { document.getElementById("query").value = q; }
+
+  function scoreColor(s) {
+    if (s >= 70) return "#1D9E75";
+    if (s >= 45) return "#EF9F27";
+    return "#E24B4A";
+  }
+  function badgeClass(s) {
+    if (s >= 70) return "badge-green";
+    if (s >= 45) return "badge-amber";
+    return "badge-red";
+  }
+
+  function setStep(num, state, detail) {
+    const icon  = document.getElementById("icon-" + num);
+    const det   = document.getElementById("detail-" + num);
+    const pstep = document.getElementById("pstep-" + num);
+
+    icon.className = "step-icon s-" + state;
+    icon.textContent = state === "done" ? "✓" : state === "warn" ? "↻" : state === "active" ? "…" : num;
+
+    pstep.className = "pipeline-step" + (state !== "idle" ? " is-" + state : "");
+    if (detail !== undefined) det.textContent = detail;
+  }
+
+  function renderTabs() {
+    document.getElementById("tabs").innerHTML = allAttempts.map((a, i) =>
+      `<button class="tab ${i===activeTab?'active':''}" onclick="showTab(${i})">
+        Attempt ${i+1} · ${a.score}%
+      </button>`
+    ).join("");
+  }
+
+  function showTab(idx) {
+    activeTab = idx;
+    renderTabs();
+    const a = allAttempts[idx];
+
+    const flags = [
+      `<span class="flag ${a.grounded?'flag-ok':'flag-bad'}">${a.grounded?'✓ Grounded':'✗ Not grounded'}</span>`,
+      `<span class="flag ${a.complete?'flag-ok':'flag-bad'}">${a.complete?'✓ Complete':'✗ Incomplete'}</span>`,
+      `<span class="flag ${!a.hallucination?'flag-ok':'flag-bad'}">${!a.hallucination?'✓ No hallucination':'✗ Hallucination'}</span>`,
+    ].join("");
+
+    document.getElementById("attempt-content").innerHTML = `
+      <div class="sublabel">Generated answer</div>
+      <div class="answer-box">${esc(a.answer)}</div>
+      <div class="sublabel">Critic feedback</div>
+      <div class="feedback-box">${esc(a.feedback)}</div>
+      <div class="sublabel">Quality flags</div>
+      <div class="flags">${flags}</div>
+      <div class="score-row">
+        <span class="badge ${badgeClass(a.score)}">Confidence: ${a.score}%</span>
+        <div class="score-track-inline">
+          <div class="score-fill-inline" style="width:${a.score}%;background:${scoreColor(a.score)}"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  function showBanner(html, type) {
+    const b = document.getElementById("status-banner");
+    b.className = "status-banner" + (type ? " " + type : "");
+    b.innerHTML = html;
+    b.classList.remove("hidden");
+  }
+
+  function resetAll() {
+    [1,2,3,4].forEach(n => setStep(n, "idle", "Waiting…"));
+    document.getElementById("score-track").classList.add("hidden");
+    document.getElementById("score-bar").style.width = "0%";
+    document.getElementById("attempts-section").classList.add("hidden");
+    document.getElementById("final-section").classList.add("hidden");
+    document.getElementById("status-banner").classList.add("hidden");
+    document.getElementById("run-btn").disabled = false;
+    allAttempts = [];
+  }
+
+  async function runPipeline() {
+    resetAll();
+    const query = document.getElementById("query").value.trim();
+    const kb    = document.getElementById("kb").value.trim();
+    const threshold = parseInt(document.getElementById("threshold").value);
+
+    if (!query || !kb) {
+      showBanner("⚠ Please fill in both the knowledge base and your question.", "error");
+      return;
+    }
+
+    document.getElementById("run-btn").disabled = true;
+    showBanner('<span class="spinner"></span> Running pipeline…');
+    setStep(1, "active", "Scanning knowledge base…");
+
+    try {
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, knowledge_base: kb, threshold }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Server error " + res.status);
+      }
+
+      const data = await res.json();
+      allAttempts = data.attempts;
+      const finalScore = data.final_score;
+      const last = allAttempts[allAttempts.length - 1];
+
+      setStep(1, "done", `${data.chunks_retrieved} relevant passage(s) retrieved`);
+      setStep(2, "done", `Answer generated in ${data.total_attempts} attempt(s)`);
+
+      document.getElementById("score-track").classList.remove("hidden");
+      document.getElementById("score-bar").style.width = finalScore + "%";
+      document.getElementById("score-bar").style.background = scoreColor(finalScore);
+
+      const issues = [];
+      if (!last.grounded)      issues.push("not grounded");
+      if (!last.complete)      issues.push("incomplete");
+      if (last.hallucination)  issues.push("hallucination detected");
+      setStep(3, finalScore >= threshold ? "done" : "warn",
+        `Score ${finalScore}% — threshold ${threshold}%` + (issues.length ? " · " + issues.join(", ") : ""));
+
+      setStep(4, data.passed ? "done" : "warn",
+        data.passed
+          ? `Accepted after ${data.total_attempts} attempt(s)`
+          : `Max attempts reached — best score: ${finalScore}%`);
+
+      // Attempts
+      document.getElementById("attempts-section").classList.remove("hidden");
+      activeTab = allAttempts.length - 1;
+      showTab(activeTab);
+
+      // Final
+      const finalSec = document.getElementById("final-section");
+      finalSec.classList.remove("hidden");
+      document.getElementById("final-answer").textContent = data.final_answer;
+
+      const fi = document.getElementById("final-icon");
+      if (!data.passed) { fi.textContent = "↻"; fi.style.background = "var(--amber-light)"; fi.style.color = "var(--amber)"; }
+      else { fi.textContent = "✓"; fi.style.background = "var(--teal-light)"; fi.style.color = "var(--teal)"; }
+
+      document.getElementById("final-meta").textContent =
+        `${data.total_attempts} attempt(s) · ${data.passed ? "passed quality threshold" : "max attempts reached"}`;
+
+      const fb = document.getElementById("final-badge");
+      fb.className = "badge " + badgeClass(finalScore);
+      fb.textContent = `${finalScore}% confidence`;
+
+      showBanner("✓ Pipeline complete.", "success");
+
+    } catch (err) {
+      showBanner("❌ Error: " + err.message, "error");
+      setStep(1, "idle", "Error occurred");
+    }
+
+    document.getElementById("run-btn").disabled = false;
+  }
+</script>
+</body>
+</html>
