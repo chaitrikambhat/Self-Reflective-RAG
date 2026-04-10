@@ -214,5 +214,5 @@ if __name__ == "__main__":
         print("\n  GROQ_API_KEY environment variable not set.")
         print("   Get your free key at: https://console.groq.com")
         print("   Then run:  export GROQ_API_KEY='gsk_your_key_here'\n")
-    print(f"Starting Self-Reflective RAG server at http://localhost:5000  (model: {MODEL})")
+    print(f"Starting Self-Reflective RAG server at http://127.0.0.1.5000  (model: {MODEL})")
     app.run(debug=True, port=5000, host="127.0.0.1")
