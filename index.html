@@ -494,7 +494,7 @@
 </div>
 
 <script>
-  const API = "http://127.0.0.1:5000/api/run";
+  const API = window.location.origin + "/api/run";
   let allAttempts = [], activeTab = 0;
 
   function setQ(q) { document.getElementById("query").value = q; }
