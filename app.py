@@ -1,20 +1,3 @@
-"""
-Self-Reflective RAG - Backend Server (Groq Edition - FREE)
-===========================================================
-Run:  python app.py
-Then: open http://localhost:5000 in your browser
-
-Requirements:
-    pip install flask flask-cors groq
-
-Get your FREE Groq API key at: https://console.groq.com
-No credit card needed. ~14,400 free requests/day.
-
-Set your key:
-    Mac/Linux:  export GROQ_API_KEY="gsk_your_key_here"
-    Windows:    set GROQ_API_KEY=gsk_your_key_here
-"""
-
 import os
 import json
 import re
@@ -25,19 +8,13 @@ from groq import Groq
 app = Flask(__name__, static_folder=".")
 CORS(app)
 
-# ── Groq client (FREE) ────────────────────────────────────────────────────────
+
 client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
 
-# Available free Groq models (pick one):
-#   "llama-3.3-70b-versatile"   <- best quality (recommended)
-#   "llama-3.1-8b-instant"      <- fastest, lower quality
-#   "mixtral-8x7b-32768"        <- good for long contexts
 MODEL = "llama-3.3-70b-versatile"
 
 MAX_ATTEMPTS = 3
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def call_llm(system: str, user: str) -> str:
     """Single call to the Groq API, returns response text."""
@@ -55,8 +32,6 @@ def call_llm(system: str, user: str) -> str:
 def retrieve_chunks(knowledge_base: str, query: str):
     """
     Simple keyword-based retriever.
-    In production, replace with vector similarity search
-    (e.g. sentence-transformers + FAISS).
     """
     sentences = re.split(r"(?<=[.!?])\s+", knowledge_base.strip())
     query_words = set(w.lower() for w in re.split(r"\W+", query) if len(w) > 3)
@@ -142,8 +117,6 @@ Score rubric:
             "feedback":      feedback_match.group(1) if feedback_match else "Could not parse critic feedback.",
         }
 
-
-# ── API Routes ────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
